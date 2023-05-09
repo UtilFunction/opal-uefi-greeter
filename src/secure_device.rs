@@ -110,9 +110,7 @@ impl SecureDevice {
     pub fn recv_locked(&mut self) -> uefi::Result<bool> {
         Ok(recv_info(self.proto())?
             .locking
-            .map_or(false, |locking| {
-                locking.contains(LockingFlags::LOCKED)
-            })
+            .map_or(false, |locking| locking.contains(LockingFlags::LOCKED))
             .into())
     }
 }

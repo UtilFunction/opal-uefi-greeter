@@ -70,8 +70,7 @@ unsafe fn secure_protocol(
         QueueType::ADMIN,
         &command,
     );
-    (&mut *passthru)
-        .send(SendTarget::Controller, &mut packet)?;
+    (&mut *passthru).send(SendTarget::Controller, &mut packet)?;
 
     Status::SUCCESS.into()
 }

@@ -57,7 +57,6 @@ macro_rules! info {
 
 impl<T, D: core::fmt::Debug> ResultFixupExt<T> for uefi::Result<T, D> {
     fn fix(self, info: &'static str) -> Result<T> {
-        self
-            .map_err(|e| Error::Uefi(e.status(), info))
+        self.map_err(|e| Error::Uefi(e.status(), info))
     }
 }

@@ -1,10 +1,8 @@
 #![no_std]
 #![no_main]
-#![feature(abi_efiapi)]
 #![feature(negative_impls)]
 #![feature(new_uninit)]
 #![feature(maybe_uninit_slice)]
-#![feature(bool_to_option)]
 #![allow(clippy::missing_safety_doc)]
 
 #[macro_use]
@@ -13,8 +11,8 @@ extern crate alloc;
 extern crate rlibc;
 
 use alloc::{string::String, vec::Vec};
-use uefi::table::boot::LoadImageSource;
 use core::{convert::TryFrom, fmt::Write, time::Duration};
+use uefi::table::boot::LoadImageSource;
 
 use uefi::{
     prelude::*,
@@ -139,7 +137,13 @@ fn run(image_handle: Handle, st: &mut SystemTable<Boot>) -> Result {
 
     let loaded_image_handle = st
         .boot_services()
-        .load_image(image_handle, LoadImageSource::FromBuffer { file_path: Some(dp), buffer: &buf })
+        .load_image(
+            image_handle,
+            LoadImageSource::FromBuffer {
+                file_path: Some(dp),
+                buffer: &buf,
+            },
+        )
         .fix(info!())?;
     let loaded_image = st
         .boot_services()
@@ -160,9 +164,7 @@ fn run(image_handle: Handle, st: &mut SystemTable<Boot>) -> Result {
 fn config_stdout(st: &mut SystemTable<Boot>) -> uefi::Result {
     st.stdout().reset(false)?;
 
-    if let Some(mode) = st.stdout().modes().max_by_key(|m| {
-        m.rows() * m.columns()
-    }) {
+    if let Some(mode) = st.stdout().modes().max_by_key(|m| m.rows() * m.columns()) {
         st.stdout().set_mode(mode)?;
     };
     Ok(().into())
@@ -274,9 +276,7 @@ fn find_secure_devices(st: &mut SystemTable<Boot>) -> uefi::Result<Vec<SecureDev
             continue;
         }
 
-        let device_path = st
-            .boot_services()
-            .handle_protocol::<DevicePath>(handle)?;
+        let device_path = st.boot_services().handle_protocol::<DevicePath>(handle)?;
         let device_path = unsafe { &mut &*device_path.get() };
 
         if let Ok(nvme) = st

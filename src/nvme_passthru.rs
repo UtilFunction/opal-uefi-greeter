@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
-use uefi::proto::device_path::FfiDevicePath;
 use core::mem::MaybeUninit;
+use uefi::proto::device_path::FfiDevicePath;
 
 use bitflags::bitflags;
 use core::{
