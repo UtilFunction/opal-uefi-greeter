@@ -11,7 +11,7 @@ extern crate alloc;
 extern crate rlibc;
 
 use alloc::{string::String, vec::Vec};
-use core::{convert::TryFrom, fmt::Write, time::Duration};
+use core::{convert::TryFrom, fmt::Write, ops::DerefMut, time::Duration};
 use uefi::table::boot::LoadImageSource;
 
 use uefi::{
@@ -42,7 +42,6 @@ use crate::{
 };
 
 pub mod config;
-pub mod dp_to_text;
 pub mod error;
 pub mod nvme_device;
 pub mod nvme_passthru;
@@ -89,7 +88,8 @@ fn run(image_handle: Handle, st: &mut SystemTable<Boot>) -> Result {
                         device.proto().serial_num(),
                         75000,
                         &mut hash,
-                    );
+                    )
+                    .unwrap();
 
                     if let Some(s) =
                         pretty_session(st, &mut device, &*hash, config.sed_locked_msg.as_deref())?
@@ -121,9 +121,8 @@ fn run(image_handle: Handle, st: &mut SystemTable<Boot>) -> Result {
 
     let dp = st
         .boot_services()
-        .handle_protocol::<DevicePath>(handle)
+        .open_protocol_exclusive::<DevicePath>(handle)
         .fix(info!())?;
-    let dp = unsafe { &mut *dp.get() };
 
     let image = CString16::try_from(config.image.as_str()).or(Err(Error::ConfigArgsBadUtf16))?;
 
@@ -140,16 +139,15 @@ fn run(image_handle: Handle, st: &mut SystemTable<Boot>) -> Result {
         .load_image(
             image_handle,
             LoadImageSource::FromBuffer {
-                file_path: Some(dp),
+                file_path: Some(&dp),
                 buffer: &buf,
             },
         )
         .fix(info!())?;
-    let loaded_image = st
+    let mut loaded_image = st
         .boot_services()
-        .handle_protocol::<LoadedImage>(loaded_image_handle)
+        .open_protocol_exclusive::<LoadedImage>(loaded_image_handle)
         .fix(info!())?;
-    let loaded_image = unsafe { &mut *loaded_image.get() };
 
     let args = CString16::try_from(&*config.args).or(Err(Error::ConfigArgsBadUtf16))?;
     unsafe { loaded_image.set_load_options(args.as_ptr() as *const u8, args.num_bytes() as _) };
@@ -173,15 +171,15 @@ fn config_stdout(st: &mut SystemTable<Boot>) -> uefi::Result {
 fn load_config(image_handle: Handle, st: &mut SystemTable<Boot>) -> Result<Config> {
     let loaded_image = st
         .boot_services()
-        .handle_protocol::<LoadedImage>(image_handle)
+        .open_protocol_exclusive::<LoadedImage>(image_handle)
         .fix(info!())?;
     let device_path = st
         .boot_services()
-        .handle_protocol::<DevicePath>(unsafe { &*loaded_image.get() }.device())
+        .open_protocol_exclusive::<DevicePath>(loaded_image.device())
         .fix(info!())?;
     let device_handle = st
         .boot_services()
-        .locate_device_path::<SimpleFileSystem>(unsafe { &mut &*device_path.get() })
+        .locate_device_path::<SimpleFileSystem>(&mut &*device_path)
         .fix(info!())?;
     let buf = read_file(st, device_handle, cstr16!("config"))
         .fix(info!())?
@@ -267,27 +265,29 @@ fn find_secure_devices(st: &mut SystemTable<Boot>) -> uefi::Result<Vec<SecureDev
     let mut result = Vec::new();
 
     for handle in st.boot_services().find_handles::<BlockIO>()? {
-        let blockio = st.boot_services().handle_protocol::<BlockIO>(handle)?;
+        let blockio = st
+            .boot_services()
+            .open_protocol_exclusive::<BlockIO>(handle)?;
 
-        if unsafe { &mut *blockio.get() }
-            .media()
-            .is_logical_partition()
-        {
+        if blockio.media().is_logical_partition() {
             continue;
         }
 
-        let device_path = st.boot_services().handle_protocol::<DevicePath>(handle)?;
-        let device_path = unsafe { &mut &*device_path.get() };
+        let device_path = st
+            .boot_services()
+            .open_protocol_exclusive::<DevicePath>(handle)?;
 
         if let Ok(nvme) = st
             .boot_services()
-            .locate_device_path::<NvmExpressPassthru>(device_path)
+            .locate_device_path::<NvmExpressPassthru>(&mut &*device_path)
         {
-            let nvme = st
+            let mut nvme = st
                 .boot_services()
-                .handle_protocol::<NvmExpressPassthru>(nvme)?;
+                .open_protocol_exclusive::<NvmExpressPassthru>(nvme)?;
 
-            result.push(SecureDevice::new(handle, NvmeDevice::new(nvme.get())?)?)
+            let nvme = nvme.deref_mut();
+
+            result.push(SecureDevice::new(handle, NvmeDevice::new(nvme)?)?)
         }
 
         // todo something like that:
@@ -319,9 +319,8 @@ fn find_boot_partition(st: &mut SystemTable<Boot>) -> Result<Handle> {
     {
         let pi = st
             .boot_services()
-            .handle_protocol::<PartitionInfo>(handle)
+            .open_protocol_exclusive::<PartitionInfo>(handle)
             .fix(info!())?;
-        let pi = unsafe { &mut *pi.get() };
 
         match pi.gpt_partition_entry() {
             Some(gpt) if { gpt.partition_type_guid } == GptPartitionType::EFI_SYSTEM_PARTITION => {
@@ -336,14 +335,13 @@ fn find_boot_partition(st: &mut SystemTable<Boot>) -> Result<Handle> {
 }
 
 fn read_file(
-    st: &mut SystemTable<Boot>,
+    st: &SystemTable<Boot>,
     device: Handle,
     file: &CStr16,
 ) -> uefi::Result<Option<Vec<u8>>> {
-    let sfs = st
+    let mut sfs = st
         .boot_services()
-        .handle_protocol::<SimpleFileSystem>(device)?;
-    let sfs = unsafe { &mut *sfs.get() };
+        .open_protocol_exclusive::<SimpleFileSystem>(device)?;
 
     let file_handle = sfs
         .open_volume()?

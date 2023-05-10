@@ -39,6 +39,7 @@ newtype_enum! {
 }
 
 bitflags! {
+    #[derive(Debug)]
     pub struct LockingFlags: u8 {
         const LOCKING_SUPPORTED = 0x01;
         const LOCKING_ENABLED   = 0x02;

@@ -9,14 +9,14 @@ license = 'MIT'
 rlibc = '1.0'
 
 wchar = '0.11'
-uefi = { version = "0.16", features = ["exts", "logger"] }
-uefi-services = '0.13'
+uefi = { version = "0.20", features = ["alloc", "global_allocator", "logger"] }
+uefi-services = '0.17'
 
-bitflags = '1.2'
-seq-macro = '0.2'
+bitflags = '2.2'
+seq-macro = '0.3'
 
-pbkdf2 = { version = "0.9.0", default-features = false }
-sha-1 = { version = "0.9", default-features = false, features = ['force-soft'] }
-hmac = { version = "0.11", default-features = false }
+pbkdf2 = { version = "0.12", default-features = false }
+sha-1 = { version = "0.10", default-features = false, features = ['force-soft'] }
+hmac = { version = "0.12", default-features = false }
 
 log = { version = '0.4', default-features = false }

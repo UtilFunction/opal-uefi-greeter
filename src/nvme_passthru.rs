@@ -9,14 +9,12 @@ use core::{
     slice,
 };
 use uefi::{
-    data_types::unsafe_guid,
     newtype_enum,
-    proto::{device_path::DevicePath, Protocol},
+    proto::{device_path::DevicePath, unsafe_protocol},
     Event, Status,
 };
 
-#[unsafe_guid("52c78312-8edc-4233-98f2-1a1aa5e388a5")]
-#[derive(Protocol)]
+#[unsafe_protocol("52c78312-8edc-4233-98f2-1a1aa5e388a5")]
 #[repr(C)]
 pub struct NvmExpressPassthru {
     mode: *const Mode,
@@ -41,7 +39,7 @@ pub struct NvmExpressPassthru {
 }
 
 impl NvmExpressPassthru {
-    pub fn mode(&self) -> &Mode {
+    pub const fn mode(&self) -> &Mode {
         unsafe { &*self.mode }
     }
 
@@ -56,7 +54,7 @@ impl NvmExpressPassthru {
     pub unsafe fn send_async<'a, 'b: 'a>(
         &'a mut self,
         target: SendTarget,
-        mut packet: &mut CommandPacket<'b>,
+        packet: &mut CommandPacket<'b>,
         event: Event,
     ) -> uefi::Result<NvmeCompletion> {
         let id = match target {
@@ -120,6 +118,7 @@ newtype_enum! {
 }
 
 bitflags! {
+    #[derive(Debug)]
     #[repr(transparent)]
     pub struct Attributes: u32 {
         const PHYSICAL    = 0x01;
@@ -193,6 +192,7 @@ impl NamespaceId {
 pub const NVME_GENERIC_TIMEOUT: u64 = 5_000_000;
 
 bitflags! {
+    #[derive(Debug)]
     #[repr(transparent)]
     struct CdwValidityFlags: u8 {
         const CDW_2  = 0x01;
@@ -236,7 +236,7 @@ macro_rules! cdws {
         $(
             pub const fn $name(mut self, $name: u32) -> Self {
                 self.$name = $name;
-                self.flags.bits |= CdwValidityFlags::$flag.bits;
+                self.flags = CdwValidityFlags::from_bits_retain(self.flags.bits() | CdwValidityFlags::$flag.bits());
                 self
             }
         )*
