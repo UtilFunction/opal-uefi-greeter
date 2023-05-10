@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use core::mem::MaybeUninit;
 use uefi::proto::device_path::FfiDevicePath;
 
 use bitflags::bitflags;
@@ -22,7 +21,7 @@ pub struct NvmExpressPassthru {
         this: &NvmExpressPassthru,
         namespace_id: u32,
         packet: &mut CommandPacket,
-        event: Event,
+        event: Option<Event>,
     ) -> Status,
     get_next_namespace:
         unsafe extern "efiapi" fn(this: &NvmExpressPassthru, namespace_id: &mut u32) -> Status,
@@ -48,14 +47,14 @@ impl NvmExpressPassthru {
         target: SendTarget,
         packet: &mut CommandPacket<'b>,
     ) -> uefi::Result<NvmeCompletion> {
-        self.send_async(target, packet, core::mem::zeroed())
+        self.send_async(target, packet, None)
     }
 
     pub unsafe fn send_async<'a, 'b: 'a>(
         &'a mut self,
         target: SendTarget,
         packet: &mut CommandPacket<'b>,
-        event: Event,
+        event: Option<Event>,
     ) -> uefi::Result<NvmeCompletion> {
         let id = match target {
             SendTarget::Controller => 0,
@@ -304,9 +303,9 @@ pub struct NvmeCompletion {
 #[repr(C)]
 pub struct CommandPacket<'a> {
     pub timeout: u64,
-    transfer_buffer: *mut MaybeUninit<u8>,
+    transfer_buffer: *mut u8,
     transfer_length: u32,
-    metadata_buffer: *mut MaybeUninit<u8>,
+    metadata_buffer: *mut u8,
     metadata_length: u32,
     pub queue_type: QueueType,
     pub cmd: &'a Command,
@@ -333,8 +332,8 @@ impl Debug for CommandPacket<'_> {
 impl<'a> CommandPacket<'a> {
     pub fn new(
         timeout: u64,
-        transfer_buffer: Option<&mut [MaybeUninit<u8>]>,
-        metadata_buffer: Option<&mut [MaybeUninit<u8>]>,
+        transfer_buffer: Option<&mut [u8]>,
+        metadata_buffer: Option<&mut [u8]>,
         queue_type: QueueType,
         cmd: &'a Command,
     ) -> Self {

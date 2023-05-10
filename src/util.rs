@@ -1,5 +1,5 @@
 use alloc::{alloc::alloc, boxed::Box};
-use core::{alloc::Layout, mem::MaybeUninit, time::Duration};
+use core::{alloc::Layout, time::Duration};
 
 pub fn sleep(duration: Duration) {
     // untie the sleep function from the system table
@@ -10,7 +10,7 @@ pub fn sleep(duration: Duration) {
     bt.stall((nanos / 1000) as usize);
 }
 
-pub unsafe fn alloc_uninit_aligned(len: usize, align: usize) -> Box<[MaybeUninit<u8>]> {
+pub unsafe fn alloc_uninit_aligned(len: usize, align: usize) -> Box<[u8]> {
     let ptr = alloc(Layout::from_size_align(len, align).unwrap()) as _;
     Box::from_raw(core::slice::from_raw_parts_mut(ptr, len))
 }

@@ -1,5 +1,4 @@
 use alloc::vec::Vec;
-use core::mem::MaybeUninit;
 
 use uefi::Status;
 
@@ -42,7 +41,7 @@ fn recv_serial_num(passthru: *mut NvmExpressPassthru) -> uefi::Result<Vec<u8>> {
 
     unsafe { passthru.send(SendTarget::Controller, &mut packet) }?;
 
-    let serial_num = unsafe { MaybeUninit::slice_assume_init_ref(&data[4..24]) };
+    let serial_num = &data[4..24];
     Ok(serial_num.to_vec().into())
 }
 
@@ -57,7 +56,7 @@ unsafe fn secure_protocol(
     direction: Direction,
     protocol: u8,
     com_id: u16,
-    buffer: &mut [MaybeUninit<u8>],
+    buffer: &mut [u8],
 ) -> uefi::Result {
     let command = Command::new(direction as u8)
         .cdw_10((protocol as u32) << 24 | (com_id as u32) << 8)
@@ -86,12 +85,7 @@ impl SecureProtocol for NvmeDevice {
         )
     }
 
-    unsafe fn secure_recv(
-        &mut self,
-        protocol: u8,
-        com_id: u16,
-        buffer: &mut [MaybeUninit<u8>],
-    ) -> uefi::Result {
+    unsafe fn secure_recv(&mut self, protocol: u8, com_id: u16, buffer: &mut [u8]) -> uefi::Result {
         secure_protocol(self.passthru, Direction::Recv, protocol, com_id, buffer)
     }
 

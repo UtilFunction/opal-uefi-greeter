@@ -1,8 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(negative_impls)]
-#![feature(new_uninit)]
-#![feature(maybe_uninit_slice)]
 #![allow(clippy::missing_safety_doc)]
 
 #[macro_use]

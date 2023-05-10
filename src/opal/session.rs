@@ -136,10 +136,8 @@ impl<'d> OpalSession<'d> {
         core::ptr::write(buffer.as_mut_ptr() as _, header);
 
         for (i, &b) in command.payload.iter().enumerate() {
-            buffer[offset + i].write(b);
+            buffer[offset + i] = b;
         }
-
-        let mut buffer = buffer.assume_init();
 
         dump("sending", &buffer);
 
@@ -170,8 +168,6 @@ impl<'d> OpalSession<'d> {
         header.cp.length = u32::from_be(header.cp.length);
         header.pkt.length = u32::from_be(header.pkt.length);
         header.subpkt.length = u32::from_be(header.subpkt.length);
-
-        let buffer = buffer.assume_init();
 
         dump(
             "received",

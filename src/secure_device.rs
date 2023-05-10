@@ -1,6 +1,5 @@
 use alloc::boxed::Box;
 use bitflags::bitflags;
-use core::mem::MaybeUninit;
 use uefi::{
     newtype_enum,
     table::{Boot, SystemTable},
@@ -13,12 +12,7 @@ pub trait SecureProtocol {
     /// Very unsafe and might even brick a device if used incorrectly.
     unsafe fn secure_send(&mut self, protocol: u8, com_id: u16, data: &mut [u8]) -> uefi::Result;
 
-    unsafe fn secure_recv(
-        &mut self,
-        protocol: u8,
-        com_id: u16,
-        buffer: &mut [MaybeUninit<u8>],
-    ) -> uefi::Result;
+    unsafe fn secure_recv(&mut self, protocol: u8, com_id: u16, buffer: &mut [u8]) -> uefi::Result;
 
     fn align(&self) -> usize;
 
@@ -128,8 +122,6 @@ fn recv_info(proto: &mut dyn SecureProtocol) -> uefi::Result<SecureDeviceInfo> {
 
     // level 0 discovery
     unsafe { proto.secure_recv(1, 1, buffer.as_mut()) }?;
-
-    let buffer = unsafe { buffer.assume_init() };
 
     // check the version for sanity
     if buffer[4..8] != [0, 0, 0, 1] {
