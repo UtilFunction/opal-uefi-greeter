@@ -115,11 +115,19 @@ fn run(image_handle: Handle, st: &mut SystemTable<Boot>) -> Result {
     }
 
     let handle = find_boot_partition(st)?;
+    let agent = st.boot_services().image_handle();
 
-    let dp = st
-        .boot_services()
-        .open_protocol_exclusive::<DevicePath>(handle)
-        .fix(info!())?;
+    let dp = unsafe {
+        st.boot_services().open_protocol::<DevicePath>(
+            uefi::table::boot::OpenProtocolParams {
+                handle: handle,
+                agent: agent,
+                controller: None,
+            },
+            uefi::table::boot::OpenProtocolAttributes::GetProtocol,
+        )
+    }
+    .fix(info!())?;
 
     let image = CString16::try_from(config.image.as_str()).or(Err(Error::ConfigArgsBadUtf16))?;
 
@@ -141,10 +149,18 @@ fn run(image_handle: Handle, st: &mut SystemTable<Boot>) -> Result {
             },
         )
         .fix(info!())?;
-    let mut loaded_image = st
-        .boot_services()
-        .open_protocol_exclusive::<LoadedImage>(loaded_image_handle)
-        .fix(info!())?;
+
+    let mut loaded_image = unsafe {
+        st.boot_services().open_protocol::<LoadedImage>(
+            uefi::table::boot::OpenProtocolParams {
+                handle: loaded_image_handle,
+                agent: agent,
+                controller: None,
+            },
+            uefi::table::boot::OpenProtocolAttributes::GetProtocol,
+        )
+    }
+    .fix(info!())?;
 
     let args = CString16::try_from(&*config.args).or(Err(Error::ConfigArgsBadUtf16))?;
     unsafe { loaded_image.set_load_options(args.as_ptr() as *const u8, args.num_bytes() as _) };
@@ -166,14 +182,32 @@ fn config_stdout(st: &mut SystemTable<Boot>) -> uefi::Result {
 }
 
 fn load_config(image_handle: Handle, st: &mut SystemTable<Boot>) -> Result<Config> {
-    let loaded_image = st
-        .boot_services()
-        .open_protocol_exclusive::<LoadedImage>(image_handle)
-        .fix(info!())?;
-    let device_path = st
-        .boot_services()
-        .open_protocol_exclusive::<DevicePath>(loaded_image.device())
-        .fix(info!())?;
+    let agent = st.boot_services().image_handle();
+
+    let loaded_image = unsafe {
+        st.boot_services().open_protocol::<LoadedImage>(
+            uefi::table::boot::OpenProtocolParams {
+                handle: image_handle,
+                agent: agent,
+                controller: None,
+            },
+            uefi::table::boot::OpenProtocolAttributes::GetProtocol,
+        )
+    }
+    .fix(info!())?;
+
+    let device_path = unsafe {
+        st.boot_services().open_protocol::<DevicePath>(
+            uefi::table::boot::OpenProtocolParams {
+                handle: loaded_image.device(),
+                agent: agent,
+                controller: None,
+            },
+            uefi::table::boot::OpenProtocolAttributes::GetProtocol,
+        )
+    }
+    .fix(info!())?;
+
     let device_handle = st
         .boot_services()
         .locate_device_path::<SimpleFileSystem>(&mut &*device_path)
@@ -261,26 +295,49 @@ fn pretty_session<'d>(
 fn find_secure_devices(st: &mut SystemTable<Boot>) -> uefi::Result<Vec<SecureDevice>> {
     let mut result = Vec::new();
 
+    let agent = st.boot_services().image_handle();
+
     for handle in st.boot_services().find_handles::<BlockIO>()? {
-        let blockio = st
-            .boot_services()
-            .open_protocol_exclusive::<BlockIO>(handle)?;
+        let blockio = unsafe {
+            st.boot_services().open_protocol::<BlockIO>(
+                uefi::table::boot::OpenProtocolParams {
+                    handle: handle,
+                    agent: agent,
+                    controller: None,
+                },
+                uefi::table::boot::OpenProtocolAttributes::GetProtocol,
+            )
+        }?;
 
         if blockio.media().is_logical_partition() {
             continue;
         }
 
-        let device_path = st
-            .boot_services()
-            .open_protocol_exclusive::<DevicePath>(handle)?;
+        let device_path = unsafe {
+            st.boot_services().open_protocol::<DevicePath>(
+                uefi::table::boot::OpenProtocolParams {
+                    handle: handle,
+                    agent: agent,
+                    controller: None,
+                },
+                uefi::table::boot::OpenProtocolAttributes::GetProtocol,
+            )
+        }?;
 
         if let Ok(nvme) = st
             .boot_services()
             .locate_device_path::<NvmExpressPassthru>(&mut &*device_path)
         {
-            let mut nvme = st
-                .boot_services()
-                .open_protocol_exclusive::<NvmExpressPassthru>(nvme)?;
+            let mut nvme = unsafe {
+                st.boot_services().open_protocol::<NvmExpressPassthru>(
+                    uefi::table::boot::OpenProtocolParams {
+                        handle: nvme,
+                        agent: agent,
+                        controller: None,
+                    },
+                    uefi::table::boot::OpenProtocolAttributes::GetProtocol,
+                )
+            }?;
 
             let nvme = nvme.deref_mut();
 
@@ -314,10 +371,17 @@ fn find_boot_partition(st: &mut SystemTable<Boot>) -> Result<Handle> {
         .find_handles::<PartitionInfo>()
         .fix(info!())?
     {
-        let pi = st
-            .boot_services()
-            .open_protocol_exclusive::<PartitionInfo>(handle)
-            .fix(info!())?;
+        let pi = unsafe {
+            st.boot_services().open_protocol::<PartitionInfo>(
+                uefi::table::boot::OpenProtocolParams {
+                    handle: handle,
+                    agent: st.boot_services().image_handle(),
+                    controller: None,
+                },
+                uefi::table::boot::OpenProtocolAttributes::GetProtocol,
+            )
+        }
+        .fix(info!())?;
 
         match pi.gpt_partition_entry() {
             Some(gpt) if { gpt.partition_type_guid } == GptPartitionType::EFI_SYSTEM_PARTITION => {
@@ -336,9 +400,16 @@ fn read_file(
     device: Handle,
     file: &CStr16,
 ) -> uefi::Result<Option<Vec<u8>>> {
-    let mut sfs = st
-        .boot_services()
-        .open_protocol_exclusive::<SimpleFileSystem>(device)?;
+    let mut sfs = unsafe {
+        st.boot_services().open_protocol::<SimpleFileSystem>(
+            uefi::table::boot::OpenProtocolParams {
+                handle: device,
+                agent: st.boot_services().image_handle(),
+                controller: None,
+            },
+            uefi::table::boot::OpenProtocolAttributes::GetProtocol,
+        )
+    }?;
 
     let file_handle = sfs
         .open_volume()?
