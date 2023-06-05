@@ -20,6 +20,10 @@ At some point in the future, some minimalist configurable graphics interface (si
 `lightdm-mini-greeter`) will be made as part of this project as well, currently the password
 is requested just through the UEFI text I/O.
 
+## Information about this fork
+
+Code in that forked repository allows to compile opal-uefi-greeter with rust taken from stable channel (tested with rustc 1.69.0 (84c898d65 2023-04-16)). Nitpick: it was ran only on one machine but it seems to be working fine (unlocks and boots the OS).
+
 ## Using it
 You have to be familiar with [sedutil-cli](https://github.com/Drive-Trust-Alliance/sedutil/wiki/Encrypting-your-drive).
 
