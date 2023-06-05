@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use uefi::Status;
+use uefi::{Status, StatusExt};
 
 use crate::{
     nvme_passthru::{self, Command, CommandPacket, NvmExpressPassthru, QueueType, SendTarget},
@@ -71,7 +71,7 @@ unsafe fn secure_protocol(
     );
     (&mut *passthru).send(SendTarget::Controller, &mut packet)?;
 
-    Status::SUCCESS.into()
+    Status::SUCCESS.to_result()
 }
 
 impl SecureProtocol for NvmeDevice {

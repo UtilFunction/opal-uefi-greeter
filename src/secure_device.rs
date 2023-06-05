@@ -1,10 +1,10 @@
 use alloc::boxed::Box;
 use bitflags::bitflags;
 use uefi::{
-    newtype_enum,
     table::{Boot, SystemTable},
     Handle, Status,
 };
+use uefi_raw::newtype_enum;
 
 pub trait SecureProtocol {
     /// # Safety

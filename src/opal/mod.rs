@@ -1,5 +1,5 @@
 use alloc::vec::Vec;
-use uefi::newtype_enum;
+use uefi_raw::newtype_enum;
 
 pub mod command;
 pub mod session;

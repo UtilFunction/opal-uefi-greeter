@@ -59,7 +59,7 @@ fn main(image_handle: Handle, mut st: SystemTable<Boot>) -> Status {
         sleep(Duration::from_secs(10));
     }
     st.runtime_services()
-        .reset(ResetType::Shutdown, Status::SUCCESS, None)
+        .reset(ResetType::SHUTDOWN, Status::SUCCESS, None)
 }
 
 fn run(image_handle: Handle, st: &mut SystemTable<Boot>) -> Result {
@@ -256,7 +256,7 @@ fn read_password(st: &mut SystemTable<Boot>, prompt: &str) -> Result<String> {
             }
             Some(Key::Special(ScanCode::ESCAPE)) => {
                 st.runtime_services()
-                    .reset(ResetType::Shutdown, Status::SUCCESS, None)
+                    .reset(ResetType::SHUTDOWN, Status::SUCCESS, None)
             }
             _ => {}
         }
@@ -286,7 +286,7 @@ fn pretty_session<'d>(
                 .unwrap();
             sleep(Duration::from_secs(10));
             st.runtime_services()
-                .reset(ResetType::Cold, Status::WARN_RESET_REQUIRED, None);
+                .reset(ResetType::COLD, Status::WARN_RESET_REQUIRED, None);
         }
         e => e.map(Some),
     }
