@@ -31,10 +31,10 @@ sed-locked-msg Too many bad tries, SED locked out, resetting in 10s..
 
 # a path to the UEFI image
 # multiple verbs are joined by \
-image vmlinuz-linux
+image \EFI\Microsoft\Boot\bootmgfw.efi
 
 # arg verbs are joined by spaces
-arg initrd=/initramfs-linux.img
+#arg initrd=/initramfs-linux.img
 
 # or you can put everything in one verb, whatever
-arg rw root=PARTUUID=cc562e1c-da71-7346-98e4-ed1b79a050b2
+#arg rw root=PARTUUID=cc562e1c-da71-7346-98e4-ed1b79a050b2

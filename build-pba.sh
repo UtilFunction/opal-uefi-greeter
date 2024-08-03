@@ -29,6 +29,9 @@ function error {
   exit 1
 }
 
+echo "Signing EFI"
+sbsign --key ISK.key --cert ISK.pem target/x86_64-unknown-uefi/release/opal-uefi-greeter.efi
+
 gdisk "$IMG" << END || error
 o
 y
@@ -49,7 +52,7 @@ echo
 
 sudo mount -o loop,offset="$OFFSET" "$IMG" mnt || error
 sudo mkdir -p mnt/"${EFI_FILE%/*}"
-sudo cp -r target/x86_64-unknown-uefi/release/opal-uefi-greeter.efi mnt/"$EFI_FILE" || error
+sudo cp -r target/x86_64-unknown-uefi/release/opal-uefi-greeter.efi.signed mnt/"$EFI_FILE" || error
 sudo cp -r config-example mnt/config || error
 sudo umount mnt || error
 
